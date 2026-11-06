@@ -261,7 +261,9 @@ var MO_WL = ['HTA','BPCO','DID','DNID','IRC','IRA','FA','ACFA','TVP','EP','IDM',
 'CHU','CHR','CH','CHRU','APHP','AP-HP','HCL','APHM','EHPAD','USLD','SSR','SMR','HAD','SSIAD','SAMU','SMUR','SAU','USC','USI','USIC','REA','UHCD','CMP','CATTP','HDJ','HDS','ALD','MDPH','CPAM','MSA','MGEN','CMU','CSS','AME','AT','MP','RQTH','AAH','APA',
 'ORL','HGE','MPR','GYN','OBS','PED','PSY','GER','ONC','HEM','DERM','OPHT','RHU','URO','IDE','IDEL','AS','AES','AMP','MK','MKDE','SF','PH','CCA','PU-PH','INTERNE','MG','CRAT','ANSM','HAS','ARS','INSERM','CNAM','RPPS','ADELI','FINESS','NIR','INS',
 'I','II','III','IV','V','VI','VII','VIII','IX','X','ML','UI','MMHG','BPM','KG','CM','MM','MMOL','UMOL','NG','PG','UG','KCAL',
-'MOTIF','ANTECEDENTS','ATCD','HISTOIRE','HDM','CLINIQUE','EXAMEN','BIOLOGIE','IMAGERIE','CONCLUSION','SYNTHESE','TRAITEMENT','ORDONNANCE','SORTIE','ENTREE','COMPTE','RENDU','URGENCES','CONSULTATION','HOSPITALISATION','CHIRURGIE','MEDICAL','NORMAL','RAS','NSP','OUI','NON','JOUR','NUIT','MATIN','MIDI','SOIR','SEMAINE','MOIS','ANS','DATE','NOM','PRENOM'];
+'MOTIF','ANTECEDENTS','ATCD','HISTOIRE','HDM','CLINIQUE','EXAMEN','BIOLOGIE','IMAGERIE','CONCLUSION','SYNTHESE','TRAITEMENT','ORDONNANCE','SORTIE','ENTREE','COMPTE','RENDU','URGENCES','CONSULTATION','HOSPITALISATION','CHIRURGIE','MEDICAL','NORMAL','RAS','NSP','OUI','NON','JOUR','NUIT','MATIN','MIDI','SOIR','SEMAINE','MOIS','ANS','DATE','NOM','PRENOM','PRENOMS',
+'PATIENT','PATIENTE','MONSIEUR','MADAME','DOCTEUR','PROFESSEUR','INDICATION','INDICATIONS','RESULTAT','RESULTATS','TECHNIQUE','COMMENTAIRE','DIPLOME','INSEE',
+'ECHOGRAPHIE','RADIOGRAPHIE','RADIO','SCANNER','SCANOGRAPHIE','MAMMOGRAPHIE','ECHO-DOPPLER','ANGIOSCANNER','ARTHROSCANNER','OSTEODENSITOMETRIE','ELECTROCARDIOGRAMME','FIBROSCOPIE','COLOSCOPIE','ENDOSCOPIE','BIOPSIE','CYTOPONCTION','ABDOMINALE','ABDOMINO-PELVIENNE','PELVIENNE','THORACIQUE','RENALE','HEPATIQUE','CERVICALE','LOMBAIRE','THYROIDIENNE','MAMMAIRE','CEREBRALE','CARDIAQUE','VESICALE','PROSTATIQUE','ARTERIEL','VEINEUX','DROIT','GAUCHE','BILATERAL','BILATERALE'];
 
 var MO_FIRST = new Set(['jean','pierre','michel','andre','philippe','rene','louis','alain','jacques','bernard','marcel','daniel','roger','robert','paul','claude','christian','henri','georges','nicolas','francois','patrick','gerard','christophe','joseph','julien','maurice','laurent','frederic','eric','david','stephane','pascal','sebastien','alexandre','thierry','olivier','thomas','antoine','maxime','lucas','hugo','arthur','marie','jeanne','francoise','monique','catherine','nathalie','isabelle','sylvie','martine','madeleine','suzanne','anne','valerie','christine','marguerite','jacqueline','sophie','sandrine','celine','veronique','chloe','camille','lea','manon','emma','sarah','laura','julie','mathilde','pauline','charlotte','amelie','claire','elise','helene','brigitte','genevieve','odette','simone','yvette','denise','paulette','colette','mireille','michele','chantal','dominique','patricia','aurelie','emilie','elodie','marine','lucie','alice','jean-pierre','jean-claude','jean-luc','jean-marc','jean-paul','jean-francois','jean-louis','jean-michel','jean-marie','marie-claire','marie-therese','marie-france','marie-laure','anne-marie']);
 
@@ -464,12 +466,18 @@ function moAnonymize(src, o) {
     each(new RegExp(moPat(term), 'gi'), function (x) { add(x.index, x.index + x[0].length, 'CUSTOM', '[TERME_MASQUÉ]', x[0], 'Terme masqué manuellement', 9); });
   });
 
-  each(/\b[123478]\s?\d{2}\s?(?:0[1-9]|1[0-2]|[2-9]\d)\s?(?:\d{2}|2[ABab])\s?\d{3}\s?\d{3}(?:\s?\d{2})?\b/g, function (x) {
+  each(/\b[123478]\s?\d{2}\s?(?:0[1-9]|1[0-2]|[2-9]\d)\s?(?:\d{2}|2[ABab])\s?\d{3}\s?\d{3}(?:[\s-]?\d{2}){0,2}\b/g, function (x) {
     add(x.index, x.index + x[0].length, 'NIR', '[NIR_MASQUÉ]', x[0], 'Numéro de sécurité sociale', 9);
   });
-  each(/\b(?:RPPS|ADELI|FINESS|IPP|IEP|NDA|Dossier\s*n°?|Séjour\s*n°?)\s*[:#-]?\s*([A-Z0-9-]{5,15})\b/gi, function (x) {
+  each(/\b(?:RPPS|ADELI|FINESS|IPP|IEP|NDA|N°\s*INS|INS|Lieu\s+INSEE|Code\s+INSEE|INSEE|(?:Votre\s+)?(?:Num[ée]ro|N°)\s+(?:de\s+)?(?:dossier|patient|examen)|Dossier\s*n°?|Séjour\s*n°?|N°\s*(?:de\s+)?s[ée]jour|Accession)\b\s*[:#-]?\s*([A-Z0-9][A-Z0-9.\/-]{3,24})\b/gi, function (x) {
     var s = x.index + x[0].lastIndexOf(x[1]);
     add(s, s + x[1].length, 'ID', '[ID_DOSSIER]', x[1], 'Identifiant administratif / RPPS', 8);
+  });
+  each(/(?<![\d.])\d{9,11}(?![\d.,])/g, function (x) {
+    add(x.index, x.index + x[0].length, 'ID', '[NUMÉRO]', x[0], 'Long numéro isolé (RPPS / ADELI / FINESS ?)', 5);
+  });
+  each(/\b(?:https?:\/\/|www\.)[^\s)>\]"«»;]+|\b[a-z0-9][a-z0-9-]{2,}\.(?:fr|com|net|org|eu|bzh|re|be|ch)\b(?!@)/gi, function (x) {
+    add(x.index, x.index + x[0].length, 'CONTACT', '[SITE_WEB]', x[0], 'Site web (identifie la structure)', 7);
   });
   each(/(?:(?:\+|00)33[\s.-]?|0)[1-9](?:[\s.-]?\d{2}){4}\b/g, function (x) {
     var n = x[0].replace(/[\s.-]/g, '');
@@ -482,8 +490,10 @@ function moAnonymize(src, o) {
     add(x.index, x.index + x[0].length, 'CONTACT', mailMap.get(n), x[0], 'Adresse e-mail', 8);
   });
 
-  if (o.maskDocs) each(/\b(Dr\.?|Docteur|Pr\.?|Professeur|Me|Maître|IDE\b|Infirmi(?:er|ère)|Kinésithérapeute|Kiné|Sage-femme)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+(?:-[A-ZÀ-Ÿ][a-zà-ÿ]+)?(?:\s+[A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ-]+){0,2})/g, function (x) {
-    var name = x[2].trim().replace(/\s+(?:au|du|de|le|la|les|pour|en|et|ou|sur|avec|chez|par)\b.*$/i, '').trim();
+  if (o.maskDocs) each(/\b(Dr\.?|Docteur|DOCTEUR|Pr\.?|Professeur|Me|Maître|IDE\b|Infirmi(?:er|ère)|Kinésithérapeute|Kiné|Sage-femme)[ \t]+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ'’-]+(?:[ \t]+[A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ'’-]+){0,2})/g, function (x) {
+    var parts = x[2].trim().split(/[ \t]+/), kept = [];
+    for (var q = 0; q < parts.length; q++) { if (moIsWl(parts[q], o.wl) || /^(?:Compte|Rendu|Service|Cabinet|Centre)$/i.test(parts[q])) break; kept.push(parts[q]); }
+    var name = kept.join(' ');
     if (!name || moIsWl(name, o.wl)) return;
     var s = x.index + x[0].indexOf(name), k = moStrip(name).toLowerCase();
     if (!docMap.has(k)) docMap.set(k, /^(IDE|Infirmi|Kiné|Sage)/i.test(x[1]) ? '[SOIGNANT_' + (dc++) + ']' : '[MÉDECIN_' + (dc++) + ']');
@@ -491,17 +501,29 @@ function moAnonymize(src, o) {
   });
 
   each(/\b(M\.|Mr\.?|Monsieur|Mme\.?|Madame|Mlle\.?|Mademoiselle|Enfant|Patient(?:e)?\s*:|Nom\s*:|Personne de confiance\s*:|Compagnon\s*:|Époux\s*:|Épouse\s*:)\s*([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ-]+(?:\s+[A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ-]+){0,2})/g, function (x) {
-    var name = x[2].trim().replace(/\s+(?:né|née|épouse|ép\.|demeurant|habitant|hospitalisé|hospitalisée|suivi|suivie|adressé|adressée|pour|au|du|le|la)\b.*$/i, '').trim();
+    var name = x[2].trim().replace(/^(?:M\.|Mme\.?|Mlle\.?|Monsieur|Madame)\s+/, '').replace(/\s+(?:né|née|épouse|ép\.|demeurant|habitant|hospitalisé|hospitalisée|suivi|suivie|adressé|adressée|pour|au|du|le|la)\b.*$/i, '').trim();
     if (!name || moIsWl(name, o.wl)) return;
     var s = x.index + x[0].indexOf(name), k = moStrip(name).toLowerCase();
-    var isTarget = (ctx.nom && k.includes(moStrip(ctx.nom).toLowerCase())) || (ctx.prenom && k.includes(moStrip(ctx.prenom).toLowerCase())) || /Patient/i.test(x[1]);
-    var tok;
+    var hasNom = !!(ctx.nom && k.includes(moStrip(ctx.nom).toLowerCase())), hasPre = !!(ctx.prenom && k.includes(moStrip(ctx.prenom).toLowerCase()));
+    var isTarget = (hasNom && (hasPre || k.split(/\s+/).length === 1)) || (hasPre && !hasNom && k.split(/\s+/).length === 1) || (hasNom && hasPre) || /Patient/i.test(x[1]);
+    var tok, prio = 8;
+    if (hasNom && !isTarget) prio = 11;
     if (isTarget) tok = '[PATIENT]';
     else {
       if (!personMap.has(k)) { personMap.set(k, pc === 1 && !ctx.nom && !ctx.prenom ? '[PATIENT]' : '[PERSONNE_' + pc + ']'); pc++; }
       tok = personMap.get(k);
     }
-    add(s, s + name.length, tok === '[PATIENT]' ? 'PATIENT' : 'PERSONNE', tok, name, 'Identité après civilité (' + x[1].trim() + ')', 8);
+    if (isTarget) return;
+    add(s, s + name.length, tok === '[PATIENT]' ? 'PATIENT' : 'PERSONNE', tok, name, 'Identité après civilité (' + x[1].trim() + ')', prio);
+  });
+  each(/(?:^|[^A-Za-zÀ-ÿ])(Patient(?:e|\(e\))?|Nom(?:[ \t]+(?:de[ \t]+naissance|d['’]usage|de[ \t]+famille|marital|du[ \t]+patient(?:e|\(e\))?))?|Pr[ée]noms?(?:\(s\))?)[ \t]*:[ \t]*([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ'’-]+(?:[ \t]+[A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ'’-]+){0,3})/g, function (x) {
+    var parts = x[2].trim().split(/[ \t]+/), kept = [];
+    for (var q = 0; q < parts.length; q++) { if (moIsWl(parts[q], o.wl)) break; kept.push(parts[q]); }
+    var name = kept.join(' ');
+    if (!name) return;
+    var s = x.index + x[0].lastIndexOf(x[2]);
+    var tok = /^Pr/i.test(x[1]) ? '[PATIENT_PRÉNOM]' : /naissance/i.test(x[1]) ? '[NOM_NAISSANCE]' : '[PATIENT_NOM]';
+    add(s, s + name.length, 'PATIENT', tok, name, 'Identité après libellé (' + x[1] + ')', 9);
   });
   each(/\b(né\(e\)|née|né|épouse|ép\.|veuve)\s+([A-ZÀ-Ÿ]{2,}(?:-[A-ZÀ-Ÿ]{2,})?)\b/g, function (x) {
     var fam = x[2].trim();
@@ -540,18 +562,25 @@ function moAnonymize(src, o) {
   }
 
   if (o.maskPlaces) {
-    each(/\b\d{1,4}\s+(?:bis\s+|ter\s+)?(?:rue|avenue|av\.|boulevard|bd\.?|impasse|allée|place|route|chemin|cours|lieu-dit|résidence)\s+[A-ZÀ-Ÿa-zà-ÿ0-9\s'-]{3,40}?(?=[,.\n]|$|\s+\d{5})/gi, function (x) {
+    each(/\b\d{1,4}(?:[ \t]*,)?[ \t]+(?:bis[ \t]+|ter[ \t]+)?(?:rue|avenue|av\.|boulevard|bd\.?|impasse|allée|place|route|chemin|cours|quai|square|passage|esplanade|faubourg|hameau|lieu-dit|résidence|rond-point|voie)[ \t]+[A-ZÀ-Ÿa-zà-ÿ0-9 \t'’-]{2,40}?(?=[,.;\n]|$|[ \t]+\d{5}|[ \t]+[-–—])/gim, function (x) {
       add(x.index, x.index + x[0].length, 'LIEU', '[ADRESSE]', x[0], 'Adresse postale', 7);
     });
-    each(/\b((?:0[1-9]|[1-8]\d|9[0-5]|97[1-6])\d{3})\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ-]+(?:\s+[A-ZÀ-Ÿa-zà-ÿ-]+){0,2})\b/g, function (x) {
+    each(/\b((?:0[1-9]|[1-8]\d|9[0-5]|97[1-6])\d{3})[ \t]+((?!(?:Patient|Nom|Pr[ée]nom|T[ée]l|Fax|Email|Mail)\b)[A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ'’-]+(?:[ \t-]+(?!(?:Patient|Nom|Pr[ée]nom|T[ée]l|Fax|Email|Mail|CEDEX\b)\b)(?:sur|sous|en|le|la|les|lès|de|du|des|[A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ'’-]+)){0,3}(?:[ \t]+CEDEX(?:[ \t]+\d+)?)?)/g, function (x) {
       add(x.index, x.index + x[0].length, 'LIEU', '[VILLE_DÉPT_' + x[1].slice(0, 2) + ']', x[0], 'Code postal + ville (département conservé)', 7);
     });
-    each(/\b((?:CHU|CHR|CH|Hôpital|Clinique(?:\s+Mutualiste)?|EHPAD|Centre|Cabinet\s+Médical|Laboratoire)\s+(?:de\s+|du\s+|des\s+|d'|les\s+)?[A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ-]+(?:\s+[A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ-]+){0,2})/g, function (x) {
-      var fac = x[1].trim(), k = moStrip(fac).toLowerCase();
+    each(/(?:^|[^A-Za-zÀ-ÿ.])((?:CHU|C\.H\.U\.?|CHRU|CHR|CH|H[ôo]pital|H[ÔO]PITAL|Polyclinique|POLYCLINIQUE|Clinique(?:[ \t]+Mutualiste)?|CLINIQUE|EHPAD|Centre(?:[ \t]+[Hh]ospitalier)?|CENTRE(?:[ \t]+HOSPITALIER)?|Cabinet(?:[ \t]+[Mm]édical)?|CABINET(?:[ \t]+M[ÉE]DICAL)?|Laboratoire|LABORATOIRE|Imagerie|IMAGERIE|Radiologie|RADIOLOGIE|Institut|INSTITUT|Maison[ \t]+de[ \t]+[Ss]anté|SELARL|SELAS|SCM|SCP)(?:[ \t]+(?:de|du|des|les|DE|DU|DES|LES)[ \t]+|[ \t]+[dDlL]['’][ \t]*|[ \t]+)[A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ'’-]+(?:[ \t]+(?:(?:de|du|des|et|DE|DU|DES|ET)[ \t]+|[dDlL]['’])?[A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ'’-]+){0,3})/g, function (x) {
+      var fac = x[1].trim(), k = moStrip(fac).toLowerCase(), fs = x.index + x[0].indexOf(x[1]);
+      if (/chef\s+de\s*$/i.test(src.slice(Math.max(0, fs - 12), fs))) return;
+      if (/^(?:imagerie|radiologie|centre|cabinet|laboratoire|clinique)\s+(?:m[ée]dicale?|interventionnelle|assistant|associ[ée]e?)\b/i.test(fac)) return;
       if (!placeMap.has(k)) placeMap.set(k, '[ÉTABLISSEMENT_' + (lc++) + ']');
-      add(x.index, x.index + fac.length, 'LIEU', placeMap.get(k), fac, 'Établissement de santé', 6);
+      add(fs, fs + fac.length, 'LIEU', placeMap.get(k), fac, 'Établissement de santé', 6);
     });
   }
+
+  if (o.maskPlaces) each(/(?:^|\n)[ \t]*([A-ZÀ-Ÿ][A-Za-zà-ÿ'’-]+(?:[ \t-]+(?:sur|sous|en|le|la|lès|[A-ZÀ-Ÿ][A-Za-zà-ÿ'’-]+)){0,3})[ \t]*,[ \t]*le[ \t]+(?=\d|1er|\w+[ \t]+\d{1,2})/g, function (x) {
+    var s = x.index + x[0].indexOf(x[1]);
+    add(s, s + x[1].length, 'LIEU', '[VILLE]', x[1], 'Ville de rédaction (« Ville, le … »)', 7);
+  });
 
   matches.sort(function (a, b) {
     if (b.priority !== a.priority) return b.priority - a.priority;
