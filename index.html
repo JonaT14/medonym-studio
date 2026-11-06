@@ -443,10 +443,10 @@ function moAnonymize(src, o) {
   var ctx = o.ctx;
 
   if (ctx.nom && ctx.nom.length >= 2) ctx.nom.split(/[\s,/;-]+/).filter(function (p) { return p.length >= 2; }).forEach(function (part) {
-    each(new RegExp('\\b' + moPat(part) + '\\b', 'gi'), function (x) { add(x.index, x.index + x[0].length, 'PATIENT', '[PATIENT_NOM]', x[0], 'Ciblage prioritaire — nom', 10); });
+    each(new RegExp('(?<![\\p{L}\\p{N}_])' + moPat(part) + '(?![\\p{L}\\p{N}_])', 'giu'), function (x) { add(x.index, x.index + x[0].length, 'PATIENT', '[PATIENT_NOM]', x[0], 'Ciblage prioritaire — nom', 10); });
   });
   if (ctx.prenom && ctx.prenom.length >= 2) ctx.prenom.split(/[\s,/;]+/).filter(function (p) { return p.length >= 2; }).forEach(function (part) {
-    each(new RegExp('\\b' + moPat(part) + '\\b', 'gi'), function (x) { add(x.index, x.index + x[0].length, 'PATIENT', '[PATIENT_PRÉNOM]', x[0], 'Ciblage prioritaire — prénom', 10); });
+    each(new RegExp('(?<![\\p{L}\\p{N}_])' + moPat(part) + '(?![\\p{L}\\p{N}_])', 'giu'), function (x) { add(x.index, x.index + x[0].length, 'PATIENT', '[PATIENT_PRÉNOM]', x[0], 'Ciblage prioritaire — prénom', 10); });
   });
   if (ctx.ddn && ctx.ddn.length >= 6) {
     var dm = ctx.ddn.match(/(\d{1,2})[\/.\-−–](\d{1,2})[\/.\-−–](\d{2,4})/);
@@ -458,7 +458,7 @@ function moAnonymize(src, o) {
     });
   }
   if (ctx.ville && ctx.ville.length >= 2) ctx.ville.split(/[,;]+/).map(function (s) { return s.trim(); }).filter(function (s) { return s.length >= 2; }).forEach(function (part) {
-    each(new RegExp('\\b' + moPat(part) + '\\b', 'gi'), function (x) { add(x.index, x.index + x[0].length, 'LIEU', '[VILLE_PATIENT]', x[0], 'Ciblage prioritaire — lieu', 10); });
+    each(new RegExp('(?<![\\p{L}\\p{N}_])' + moPat(part) + '(?![\\p{L}\\p{N}_])', 'giu'), function (x) { add(x.index, x.index + x[0].length, 'LIEU', '[VILLE_PATIENT]', x[0], 'Ciblage prioritaire — lieu', 10); });
   });
 
   o.customMasks.forEach(function (term) {
@@ -557,7 +557,9 @@ function moAnonymize(src, o) {
       add(x.index, x.index + x[0].length, 'DATE', tok, x[0], 'Date clinique', 6);
     });
     each(/\b(\d{1,2}|1er)\s+(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\s+((?:19|20)\d{2})\b/gi, function (x) {
-      var tok = o.dateMode === 'strict' ? '[DATE]' : '[' + x[2] + ' ' + x[3] + ']';
+      var months = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'];
+      var month = months.indexOf(moStrip(x[2]).toLowerCase()) + 1;
+      var tok = o.dateMode === 'strict' ? '[DATE]' : o.dateMode === 'shift' ? '[' + moShift(x[1] === '1er' ? '1' : x[1], month, x[3], o.shift) + ']' : '[' + x[2] + ' ' + x[3] + ']';
       add(x.index, x.index + x[0].length, 'DATE', tok, x[0], 'Date en toutes lettres', 6);
     });
   }
@@ -599,6 +601,7 @@ function moAnonymize(src, o) {
     each(/\b(CPTS|MSP|PTA|DAC|GHT|CLS)[ \t]+((?:de[ \t]+|du[ \t]+|des[ \t]+|d['’])?[A-ZÀ-Ÿ][A-Za-zà-ÿ'’-]+(?:[ \t\n]+(?:(?:et|de|du|des)[ \t]+)?[A-ZÀ-Ÿ][A-Za-zà-ÿ'’-]+){0,3})/g, function (x) {
       var parts = x[2].split(/\s+/), kept = [];
       for (var q = 0; q < parts.length; q++) { if (moIsWl(parts[q], o.wl) || /^(?:Et|Le|La|Les)$/.test(parts[q])) break; kept.push(parts[q]); }
+      if (!kept.length) return;
       var v = kept.join(' '); v = x[2].slice(0, x[2].indexOf(kept[kept.length - 1]) + kept[kept.length - 1].length);
       var s = x.index + x[0].indexOf(x[2]);
       add(s, s + v.length, 'LIEU', '[TERRITOIRE]', v, 'Structure territoriale (' + x[1] + ')', 6);
@@ -630,6 +633,19 @@ function moAnonymize(src, o) {
     acc.push(it);
   });
   acc.sort(function (a, b) { return a.start - b.start; });
+  // A token must identify exactly one original value for reliable restoration.
+  var reserved = new Set(acc.map(function (it) { return it.token; }));
+  var assigned = new Map(), values = new Map();
+  acc.forEach(function (it) {
+    var base = it.token, key = JSON.stringify([base, it.original]);
+    if (assigned.has(key)) { it.token = assigned.get(key); return; }
+    var token = base;
+    if (values.has(token) && values.get(token) !== it.original) {
+      var n = 2;
+      do { token = /\]$/.test(base) ? base.slice(0, -1) + '_' + n++ + ']' : base + '_' + n++; } while (reserved.has(token) || values.has(token));
+    }
+    assigned.set(key, token); values.set(token, it.original); it.token = token;
+  });
   return acc;
 }
 
@@ -665,7 +681,7 @@ function moPill(cat) {
     else fallback();
     function fallback() {
       var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); flash(msg); } catch (e) { flash('Copie impossible'); } ta.remove();
+      document.body.appendChild(ta); ta.select(); try { flash(document.execCommand('copy') ? msg : 'Copie impossible'); } catch (e) { flash('Copie impossible'); } ta.remove();
     }
   }
   function plain() {
@@ -703,7 +719,7 @@ function moPill(cat) {
     }).join('');
     $('total').textContent = ents.length;
     var r = $('ready');
-    r.textContent = ents.length ? 'Prêt pour l\'IA' : 'En attente';
+    r.textContent = ents.length ? 'À vérifier' : 'En attente';
     r.style.background = ents.length ? '#5BD6A6' : 'rgba(234,245,239,.14)';
     r.style.color = ents.length ? '#04140D' : '#EAF5EF';
 
